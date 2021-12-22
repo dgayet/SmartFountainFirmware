@@ -156,7 +156,7 @@ void app_main(void)
 
         // debounce for turning on and off the water pump
         xQueueReceive(mqtt_data_queue, &received_data, 10);
-        printf("MQTT Data: %d\n", received_data);
+        printf("MQTT Data from /home/water_pump/mode: %d\n", received_data);
         if (distance < DISTANCE_THR_CM){
             debounce_us_dist_on++;
             debounce_us_dist_off = 0;

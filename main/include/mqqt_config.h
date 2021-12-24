@@ -32,10 +32,10 @@
 //     .password = "pate"
 //     // .user_context = (void *)your_context
 // };
-#define WATER_PUMP_STATUS_TOPIC "/home/water_pump/status"
-#define WATER_PUMP_MODE_TOPIC "/home/water_pump/mode"
+#define WATER_PUMP_STATUS_TOPIC "/home/water_fountain/status"
+#define WATER_PUMP_MODE_TOPIC "/home/water_fountain/mode"
 #define WATER_PUMP_MODE_MANUAL 1
-#define WATER_PUMP_MODE_AUTO -1
+#define WATER_PUMP_MODE_AUTO 0
 #define WATER_PUMP_MODE_BLOCKED 2
 
 

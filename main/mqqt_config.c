@@ -80,7 +80,7 @@ int data_str_to_num(char * data){
             //num = 0;
             break;
     }
-    return mode;
+    return num;
 
     /*
     if (num == 1){

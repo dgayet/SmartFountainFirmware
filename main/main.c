@@ -45,7 +45,7 @@ const static char *TAG = "hc-sr04";
 
 // MQTT  
 const esp_mqtt_client_config_t mqtt_cfg = {
-    .host = "192.168.1.9",
+    .host = "192.168.0.21",
     .port = 1883,
     .transport = MQTT_TRANSPORT_OVER_TCP,
     .username = "amy",
@@ -71,7 +71,7 @@ void app_main(void)
 
     /* INITIALIZE MQTT */
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    mqtt_data_queue = xQueueCreate(6, sizeof(int));
+    mqtt_data_queue = xQueueCreate(1, sizeof(int));
     if (mqtt_data_queue == NULL) {
         ESP_LOGE(TAG, "failed to alloc MQTT DATA QUEUE");
         return;
@@ -141,7 +141,7 @@ void app_main(void)
 
     int debounce_us_dist_on = 0;
     int debounce_us_dist_off = 0;
-    int received_data = -2;
+    int received_data = 0;
     while(1) {
         uint32_t pulse_count;
         // block and wait for new measurement
@@ -157,29 +157,43 @@ void app_main(void)
         // debounce for turning on and off the water pump
         xQueueReceive(mqtt_data_queue, &received_data, 10);
         printf("MQTT Data from /home/water_pump/mode: %d\n", received_data);
-        if (distance < DISTANCE_THR_CM){
-            debounce_us_dist_on++;
-            debounce_us_dist_off = 0;
-            if (debounce_us_dist_on >= DEBOUNCE_THR){
-                // encender bebedero
-                gpio_set_level(WATER_PUMP_PIN, 1);
-                print("GPI[%d]: ")
 
-                if (debounce_us_dist_on == DEBOUNCE_THR){
-                esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "WATER PUMP ON", 0, 1, false);
-                }
-            }
-        }
-        else{
-            debounce_us_dist_off++;
-            debounce_us_dist_on = 0;
-            if (debounce_us_dist_off >= DEBOUNCE_THR){
-                // apagar bebedero
+        switch(received_data){
+            case WATER_PUMP_MODE_MANUAL:
+                gpio_set_level(WATER_PUMP_PIN, 1);
+                break;
+            case WATER_PUMP_MODE_BLOCKED:
                 gpio_set_level(WATER_PUMP_PIN, 0);
-                if (debounce_us_dist_off == DEBOUNCE_THR){
-                esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "WATER PUMP OFF", 0, 1, false);
+                break;
+            case WATER_PUMP_MODE_AUTO:
+                if (distance < DISTANCE_THR_CM){
+                    debounce_us_dist_on++;
+                    debounce_us_dist_off = 0;
+                    if (debounce_us_dist_on >= DEBOUNCE_THR){
+                        // encender bebedero
+                        gpio_set_level(WATER_PUMP_PIN, 1);
+                        //printf("GPIO[%d]: ")
+
+                        if (debounce_us_dist_on == DEBOUNCE_THR){
+                        esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "WATER PUMP ON", 0, 1, false);
+                        }
+                    }
                 }
-            }
+                else{
+                    debounce_us_dist_off++;
+                    debounce_us_dist_on = 0;
+                    if (debounce_us_dist_off >= DEBOUNCE_THR){
+                        // apagar bebedero
+                        gpio_set_level(WATER_PUMP_PIN, 0);
+                        if (debounce_us_dist_off == DEBOUNCE_THR){
+                        esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "WATER PUMP OFF", 0, 1, false);
+                        }
+                    }
+                
+                }
+                break;
+            default:
+                break;
         }
     }
 }

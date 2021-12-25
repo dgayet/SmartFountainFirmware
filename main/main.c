@@ -33,17 +33,20 @@
 #include "include/mqqt_config.h"
 //#include "include/gpio_config.h"
 #include "include/mcpwm_capture_hc_sr04.h"
-//#include "include/mqtt_macros.h"
+#include "include/HX711.h"
+#include "include/esp_idf_lib_helpers.h"
 
 
 #define WATER_PUMP_PIN  23
 #define DISTANCE_THR_CM 10
-#define DEBOUNCE_THR 7 // times to measure until turning on/off water pump
+#define DEBOUNCE_THR 4 // times to measure until turning on/off water pump
 
+#define LOW_THR_WEIGHT -139000 //threshold for minimum weight
+#define HI_THR_WEIGHT -136000 //threshold for maximum weight
 
 const static char *TAG = "hc-sr04";
 
-// MQTT  
+// MQTT Cilent 
 const esp_mqtt_client_config_t mqtt_cfg = {
     .host = "192.168.0.21",
     .port = 1883,
@@ -54,9 +57,21 @@ const esp_mqtt_client_config_t mqtt_cfg = {
 };
 
 
-// GPIO Configuracion
+// Queues de data:
 static xQueueHandle cap_queue = NULL;
 static xQueueHandle mqtt_data_queue = NULL;
+static xQueueHandle volume_queue = NULL;
+
+
+// esto tiene que ir a HX711.c
+
+
+
+
+
+
+
+
 
 
 void app_main(void)
@@ -76,7 +91,6 @@ void app_main(void)
         ESP_LOGE(TAG, "failed to alloc MQTT DATA QUEUE");
         return;
     }
-    //esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, (void *) mqtt_data_queue);
     esp_mqtt_client_start(client);
     esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "INICIO:", 0, 1, false);
@@ -85,18 +99,14 @@ void app_main(void)
     esp_mqtt_client_subscribe(client, WATER_PUMP_MODE_TOPIC, 1);
 
 
-
     /* INITIALIZE CAPTURE PINS */
-
     // queue for data
     cap_queue = xQueueCreate(1, sizeof(uint32_t));
     if (cap_queue == NULL) {
         ESP_LOGE(TAG, "failed to alloc cap_queue");
         return;
     }
-
-
-   /* configure Echo pin */
+    /* configure Echo pin */
     // set CAP_0 on GPIO
     ESP_ERROR_CHECK(mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM_CAP_0, HC_SR04_PIN_ECHO));
     // enable pull down CAP0, to reduce noise
@@ -110,8 +120,6 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(mcpwm_capture_enable_channel(MCPWM_UNIT_0, MCPWM_SELECT_CAP0, &conf));
     ESP_LOGI(TAG, "Echo pin configured");
-
-
     /* configure Trig Pin */
     gpio_config_t trig_conf = {
         .intr_type = GPIO_INTR_DISABLE,
@@ -135,6 +143,11 @@ void app_main(void)
     gpio_config(&io_conf);
     gpio_set_level(WATER_PUMP_PIN, 0); // water pump turned-off initially
 
+    // create task and queue for scale
+    volume_queue = xQueueCreate(1, sizeof(int32_t));
+    xTaskCreate(read_weight, "test", configMINIMAL_STACK_SIZE * 5, (void *) volume_queue, 4, NULL);
+
+
     // create task for trig signal generation
     xTaskCreate(gen_trig_output, "gen_trig_output", TRIGGER_THREAD_STACK_SIZE, NULL, TRIGGER_THREAD_PRIORITY, NULL);
     ESP_LOGI(TAG, "trig task started");
@@ -142,6 +155,10 @@ void app_main(void)
     int debounce_us_dist_on = 0;
     int debounce_us_dist_off = 0;
     int received_data = 0;
+    int raw_weight;
+    int HI_FLAG = 0;
+    int OK_FLAG = 0;
+    int LOW_FLAG = 0;
     while(1) {
         uint32_t pulse_count;
         // block and wait for new measurement
@@ -158,42 +175,74 @@ void app_main(void)
         xQueueReceive(mqtt_data_queue, &received_data, 10);
         printf("MQTT Data from /home/water_pump/mode: %d\n", received_data);
 
-        switch(received_data){
-            case WATER_PUMP_MODE_MANUAL:
-                gpio_set_level(WATER_PUMP_PIN, 1);
-                break;
-            case WATER_PUMP_MODE_BLOCKED:
-                gpio_set_level(WATER_PUMP_PIN, 0);
-                break;
-            case WATER_PUMP_MODE_AUTO:
-                if (distance < DISTANCE_THR_CM){
-                    debounce_us_dist_on++;
-                    debounce_us_dist_off = 0;
-                    if (debounce_us_dist_on >= DEBOUNCE_THR){
-                        // encender bebedero
-                        gpio_set_level(WATER_PUMP_PIN, 1);
-                        //printf("GPIO[%d]: ")
+        xQueueReceive(volume_queue, &raw_weight, 10);
+        printf("Uncalibrated weight: %d\n", raw_weight);
 
-                        if (debounce_us_dist_on == DEBOUNCE_THR){
-                        esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "WATER PUMP ON", 0, 1, false);
-                        }
-                    }
-                }
-                else{
-                    debounce_us_dist_off++;
-                    debounce_us_dist_on = 0;
-                    if (debounce_us_dist_off >= DEBOUNCE_THR){
-                        // apagar bebedero
-                        gpio_set_level(WATER_PUMP_PIN, 0);
-                        if (debounce_us_dist_off == DEBOUNCE_THR){
-                        esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "WATER PUMP OFF", 0, 1, false);
-                        }
-                    }
-                
-                }
-                break;
-            default:
-                break;
+        if (raw_weight < LOW_THR_WEIGHT){
+            HI_FLAG = 0;
+            OK_FLAG = 0;
+            if (LOW_FLAG == 0){
+                esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "LOW", 0, 1, false);
+                LOW_FLAG = 1;
+            }
+            
+            gpio_set_level(WATER_PUMP_PIN, 0);
         }
+        else if(raw_weight < HI_THR_WEIGHT){
+            HI_FLAG = 0;
+            LOW_FLAG = 0;
+            if (OK_FLAG == 0){
+                esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "OK", 0, 1, false);
+                OK_FLAG = 1;
+            }
+            switch(received_data){
+                case WATER_PUMP_MODE_MANUAL:
+                    gpio_set_level(WATER_PUMP_PIN, 1);
+                    break;
+                case WATER_PUMP_MODE_BLOCKED:
+                    gpio_set_level(WATER_PUMP_PIN, 0);
+                    break;
+                case WATER_PUMP_MODE_AUTO:
+                    if (distance < DISTANCE_THR_CM){
+                        debounce_us_dist_on++;
+                        debounce_us_dist_off = 0;
+                        if (debounce_us_dist_on >= DEBOUNCE_THR){
+                            // encender bebedero
+                            gpio_set_level(WATER_PUMP_PIN, 1);
+                            //printf("GPIO[%d]: ")
+
+                            if (debounce_us_dist_on == DEBOUNCE_THR){
+                            //esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "WATER PUMP ON", 0, 1, false);
+                            }
+                        }
+                    }
+                    else{
+                        debounce_us_dist_off++;
+                        debounce_us_dist_on = 0;
+                        if (debounce_us_dist_off >= DEBOUNCE_THR){
+                            // apagar bebedero
+                            gpio_set_level(WATER_PUMP_PIN, 0);
+                            if (debounce_us_dist_off == DEBOUNCE_THR){
+                            //esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "WATER PUMP OFF", 0, 1, false);
+                            }
+                        }
+                    
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        else{
+            LOW_FLAG = 0;
+            OK_FLAG = 0;
+            if (HI_FLAG == 0){
+                esp_mqtt_client_publish(client, WATER_PUMP_STATUS_TOPIC, "MAX", 0, 1, false);
+                HI_FLAG = 1;
+            }
+            gpio_set_level(WATER_PUMP_PIN, 0);
+        }
+
+
     }
 }

@@ -153,3 +153,47 @@ esp_err_t hx711_read_data(hx711_t *dev, int32_t *data)
 
     return ESP_OK;
 }
+
+///////////// read_data function ////////////////////7
+void read_weight(void *pvParameters)
+{
+    xQueueHandle volume_queue = pvParameters;
+    hx711_t dev = {
+        .dout = DOUT_GPIO,
+        .pd_sck = PD_SCK_GPIO,
+        .gain = HX711_GAIN_A_64
+    };
+
+    // initialize device
+    while (1)
+    {
+        esp_err_t r = hx711_init(&dev);
+        if (r == ESP_OK)
+            break;
+        printf("Could not initialize HX711: %d (%s)\n", r, esp_err_to_name(r));
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
+    // read from device
+    while (1)
+    {
+        esp_err_t r = hx711_wait(&dev, 300);
+        if (r != ESP_OK)
+        {
+            printf("Device not found: %d (%s)\n", r, esp_err_to_name(r));
+            continue;
+        }
+
+        int32_t data;
+        r = hx711_read_data(&dev, &data);
+        if (r != ESP_OK)
+        {
+            printf("Could not read data: %d (%s)\n", r, esp_err_to_name(r));
+            continue;
+        }
+
+        //printf("Raw data: %d\n", data);
+        xQueueSend(volume_queue, &data, 1);
+        vTaskDelay(pdMS_TO_TICKS(300));
+    }
+}

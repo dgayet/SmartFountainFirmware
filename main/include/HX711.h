@@ -42,10 +42,20 @@
 #include <driver/gpio.h>
 #include <stdbool.h>
 #include <esp_err.h>
+#include <stdio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+/* PIN USAGE */
+#define PD_SCK_GPIO 16
+#define DOUT_GPIO 17
+
 
 /**
  * Gain/channel
@@ -126,10 +136,12 @@ esp_err_t hx711_wait(hx711_t *dev, size_t timeout_ms);
  */
 esp_err_t hx711_read_data(hx711_t *dev, int32_t *data);
 
+void read_weight(void *pvParameters);
 #ifdef __cplusplus
 }
 #endif
 
 /**@}*/
+
 
 #endif /* __HX711_H__ */

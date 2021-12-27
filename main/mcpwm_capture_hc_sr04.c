@@ -7,7 +7,6 @@ typedef struct {
     mcpwm_capture_signal_t sel_cap_signal;
 } capture;
 
-// es necesario que sea STATIC, pensar por qué 
 static uint32_t cap_val_begin_of_sample = 0;
 static uint32_t cap_val_end_of_sample = 0;
 

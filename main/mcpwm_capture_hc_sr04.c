@@ -23,8 +23,6 @@ void gen_trig_output(void *arg) {
 
 bool sr04_echo_isr_handler(mcpwm_unit_t mcpwm, mcpwm_capture_channel_id_t cap_sig,
                            const cap_event_data_t *edata, void *arg) {
-    //calculate the interval in the ISR,
-    //so that the interval will be always correct even when cap_queue is not handled in time and overflow.
     xQueueHandle cap_queue = arg;
     BaseType_t high_task_wakeup = pdFALSE;
     if (edata->cap_edge == MCPWM_POS_EDGE) {

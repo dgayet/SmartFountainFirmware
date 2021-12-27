@@ -66,18 +66,13 @@ void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event
 
 int data_str_to_num(char * data){
     int num = atoi(data);
-    int static mode = -1;
     switch (num){
         case WATER_PUMP_MODE_MANUAL:
-            mode = num;
             break;
         case WATER_PUMP_MODE_AUTO:
-            mode = num;
             break;
         case WATER_PUMP_MODE_BLOCKED:
-            mode = num;
         default:
-            //num = 0;
             break;
     }
     return num;

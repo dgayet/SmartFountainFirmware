@@ -13,7 +13,7 @@ _Static_assert(HC_SR04_SAMPLE_PERIOD_MS > 50, "Sample period too short!");
 
 #define TRIGGER_THREAD_STACK_SIZE 512
 #define TRIGGER_THREAD_PRIORITY 5
-#define SOUND_SPEED_MPS 330
+#define SOUND_SPEED_MPS 343
 #define GPIO_OUTPUT_PIN_SEL  1ULL<<WATER_PUMP_PIN
 
 void gen_trig_output(void *arg);

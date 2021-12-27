@@ -72,6 +72,7 @@ int data_str_to_num(char * data){
         case WATER_PUMP_MODE_AUTO:
             break;
         case WATER_PUMP_MODE_BLOCKED:
+            break;
         default:
             break;
     }

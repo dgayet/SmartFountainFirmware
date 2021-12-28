@@ -171,7 +171,7 @@ void app_main(void)
         float distance = (float) pulse_width_us / 58;
         ESP_LOGI(TAG, "Pulse width: %uus, Measured distance: %.2fcm", pulse_width_us, distance);
 
-        // debounce for turning on and off the water pump
+        // DATA to change MODE 
         xQueueReceive(mqtt_data_queue, &received_data, 10);
         printf("MQTT Data from /home/water_pump/mode: %d\n", received_data);
 

@@ -4,8 +4,6 @@
 
 ## Repositorio para el Firmware (ESP32 Source code) del trabajo final de la materia: Smart Motion Activated Water Fountain
 
-### Gayet, Denise
-
 Video explicativo del proyecto: https://youtu.be/tSH6keEnLOM
   
 </div>

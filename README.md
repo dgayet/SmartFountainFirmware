@@ -24,4 +24,7 @@ Para conectar la app al broker se debe ingresar el Id del bebedero (el cual est�
 
 Tuve que realizar un cambio con respecto a la planificación inicial, debido a que no dimensioné correctamente el recipiente del bebedero (fue impreso 3D). En un principio se suponía que la medición del nivel de agua se realizaría mediante un sensor ultrasónico, pero no cabía en el recipiente. Para solucionar esto, se utilizó una celda de carga y, mediante la diferencia de peso se estima el estado del nivel de agua (LOW - OK - MAX). 
 
-## [Memorias del trabajo](https://docs.google.com/document/d/1se82ddqt4nXomL6jscsCLvCwCPkAm0AU/edit?usp=sharing&ouid=113286055275724020143&rtpof=true&sd=true)
+## Documentos
+
+### [Planificación del trabajo](https://docs.google.com/document/d/1PE7WXsrc4ZgiZ64C1o87xatX0h4fK-Y4/edit?usp=sharing&ouid=113286055275724020143&rtpof=true&sd=true)
+### [Memorias del trabajo](https://docs.google.com/document/d/1se82ddqt4nXomL6jscsCLvCwCPkAm0AU/edit?usp=sharing&ouid=113286055275724020143&rtpof=true&sd=true)
